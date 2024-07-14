@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>포켓몬 오목</title>
+    <style>
+        body{
+            display: flex;
+            width: 1900px;
+            flex-direction: row;
+            margin: 0;
+            background-color: black;
+        }
+
+        #canvasContainer{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 960px;
+        }
+
+        canvas{
+            background-color: #deb887;
+        }
+
+        #blackInfo{
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-evenly;
+            align-content: space-evenly;
+            width: 470px;
+            height: 960px;
+            border: 1px solid black;
+            box-sizing: border-box;
+            background-color: black;
+        }
+
+        #whiteInfo{
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-evenly;
+            align-content: space-evenly;
+            width: 470px;
+            height: 960px;
+            border: 1px solid black;
+            box-sizing: border-box;
+            background-color: white;
+        }
+
+        .blackBall{
+            background-color: black;
+            margin: 0px;
+            border: 0px;
+            padding: 0px;
+        }
+
+        .whiteBall{
+            background-color: white;
+            margin: 0px;
+            border: 0px;
+            padding: 0px;
+        }
+
+        audio{
+            position: absolute;
+            bottom: 0px;
+            right: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div id="blackInfo">
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/fire.webp" onclick="selectPokemonB()" >
+        </button>
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/electric.webp" onclick="" >
+        </button>
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/poison.webp" onclick="" >
+        </button>
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/ghost.webp" onclick="" >
+        </button>
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/dark.webp" onclick="" >
+        </button>
+        <button class="blackBall" id="" type="button">
+            <img src="src/ball/bug.webp" onclick="" >
+        </button>
+        
+
+    </div>
+    <div id="canvasContainer">
+        <canvas id = 'canvas' width="960" height="960"></canvas>
+    </div>
+    <div id="whiteInfo">
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/water.webp" onclick="selectPokemonW()" >
+        </button>
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/grass.webp" onclick="" >
+        </button>
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/ice.webp" onclick="" >
+        </button>
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/flying.webp" onclick="" >
+        </button>
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/Steel.webp" onclick="" >
+        </button>
+        <button class="whiteBall" id="" type="button">
+            <img src="src/ball/fairy.webp" onclick="" >
+        </button>
+    </div>
+    
+    
+    <script>
+        //캔버스 객체
+        let canvas;
+        let ctx;
+        let canvasBuffer;
+        let bufferCtx;
+        let threadSpeed = 64;
+        let cursor = {x:0,y:0}
+
+        //타이틀 이미지
+        let titleImg;
+
+        //오목알
+        let board = new Array();
+        let boardRows = 15;
+        let boardColumns = 15;
+
+        let stone = new Array();
+        let lastRow;
+        let lastColumn;
+        let lastTurn;
+
+        let pokemonB ;
+        let pokemonW ;
+
+        //이미지
+        let img1st
+        let img2nd
+        let img3rd
+        let img4th
+        let img5th
+        let img6th
+        let img7th
+        let imgMega
+        
+        pokemon_Fire = [
+            [{imgFile:'img1st', x: 1049, y:5},
+            {imgFile:'img1st', x:1571, y:5},
+            {imgFile:'img1st', x:1832, y:5},
+            {imgFile:'imgMega', x:266, y:5},
+            {imgFile:'imgMega', x:788, y:5}]
+        ]
+        pokemon_Grass = [[
+
+        ],[]]
+        pokemon_Water = [[],
+            [{imgFile:'img1st', x: 2354, y:5},
+            {imgFile:'img1st', x:2876, y:5},
+            {imgFile:'img1st', x:3137, y:5},
+            {imgFile:'imgMega', x:1310, y:5},
+            {imgFile:'imgMega', x:1310, y:5}],
+            [{imgFile:'img4th', x: 2093, y:5},
+            {imgFile:'img4th', x:2354, y:5},
+            {imgFile:'img4th', x:2615, y:5},
+            {imgFile:'img4th', x:2876, y:5},
+            {imgFile:'img4th', x:2876, y:5}],
+            
+        ]
+
+        //타이머
+        let loopInstance
+
+        //게임의 상태
+        let STATE_START = false;
+        let TURN_BLACK = false;
+        let TURN = 0;
+        let STATE_GAMEOVER = false;
+        
+        //키 상태(게임시작: enter, 게임 다시시작: space)
+        let keyPressed = [];
+
+        //경과 시간
+        let oldTime;
+        let startTime;
+        let totalTime;
+
+        //이벤트 등록
+        window.addEventListener('load', initialize, false);
+        window.onload = function(){
+            canvas.addEventListener('click', function(e){
+                //console.log(`click : ${e.x - 470} , ${e.y}`)
+                placeStone(e.x - 470, e.y)
+                //console.log(board)
+            })
+
+            canvas.addEventListener('mousemove', function(e){
+                cursor.x = e.x - 470
+                cursor.y = e.y
+                //console.log(`x:${cursor.x}, y:${cursor.y}`)
+                //console.log(`x:${Math.floor(cursor.x/64)}, y:${Math.floor(cursor.y/64)}`)
+            })
+        }
+        
+        window.addEventListener('keydown', getKeyDown, false); //getKeydown 어떤 키를 누르고 있는지 반환
+        window.addEventListener('keyup', getKeyUp, false); // getKeyUp
+
+        function initialize(){
+            setImage();
+            
+            canvas = document.getElementById('canvas');
+            
+            if(canvas == null|| canvas.getContext == null){ //캔버스가 null이거나 getContext가 null
+                return;
+            }
+            
+            ctx = canvas.getContext('2d') // 그리는 디바이스 컨텍스트를 갖고옴
+            canvasBuffer = document.createElement('canvas');
+            canvasBuffer.width = canvas.width;
+            canvasBuffer.height = canvas.height;
+            bufferCtx = canvasBuffer.getContext('2d');
+
+            //반복 동작 설정
+            loopInstance = setInterval(update, threadSpeed)
+        }
+
+        function startGame(){
+            const audio1 = new Audio()
+            audio1.src = "src/audio/HGSS BGM.mp3"
+            audio1.loop = true
+            audio1.play()
+
+            STATE_START = true;
+            //오목판 초기화
+            initBoard();
+
+            //현재 시간 저장
+            startTime = getTime(); // 게임을 시작한 시간
+        }
+
+        function initBoard(){
+            board = Array.from(new Array(boardColumns), () => new Array(boardRows).fill(0));
+            console.log(board)
+        }
+
+        function placeStone(x, y){
+            //돌이 존재하는 지 확인
+            if(board[Math.floor(y/64)][Math.floor(x/64)] != 0){
+                console.log('해당 위치에 돌이 이미 존재 합니다.')
+                return
+            }
+
+            //흑돌 턴에 금수(3x3, 4x4) 검사
+            //if(checkForbidden(Math.floor(x/64), Math.floor(y/64))){
+            //    return
+            //}
+
+            // 2차원 배열에 오목판 데이터 기록, 흑 1, 백 2
+            board[Math.floor(y/64)][Math.floor(x/64)] = TURN_BLACK ? 1 : 2
+
+            //몬스터 볼 애니메이션
+
+            //진화
+            //evolve()
+
+            //착수
+            TURN = TURN + 1
+            stone.push({
+                color: TURN_BLACK ? 1 : 2,
+                row: Math.floor(y/64),
+                column: Math.floor(x/64),
+                pixelX: 64*Math.floor(x/64),
+                pixelY: 64*Math.floor(y/64),
+                // imgFile: TURN_BLACK ? pokemonB[0].imgFile : pokemonW[0].imgFile ,
+                // imgX : TURN_BLACK ? pokemonB[0].x : pokemonW[0].x,
+                // imgY : TURN_BLACK ? pokemonB[0].y :pokemonW[0].y
+            })
+
+            
+            lastRow = Math.floor(y/64)
+            lastColumn = Math.floor(x/64)
+            lastTurn = TURN_BLACK ? 1 : 2;
+            //console.log(lastColumn, lastRow)
+
+            //오목 검사
+            checkOmok();
+            //console.log(STATE_GAMEOVER);
+            
+            
+            //턴 변경
+            changeTurn();
+
+            //console.log(board)
+        }
+
+        function getTime(){
+            var date = new Date();
+            var time = date.getTime();
+            delete date;
+            return time;
+        }
+
+        function update(){
+            if(keyPressed[13] == true && STATE_START == false){
+                //게임 시작
+                console.log('게임 시작')
+                startGame();
+            }
+
+            if(keyPressed[32] == true){
+                document.location.reload();
+            }
+
+            //그림 그리기
+            drawAll();
+        }
+
+        function drawAll(){
+            ctx.clearRect(0,0,canvas.width,canvas.height)
+            if(!STATE_START) {
+                drawTitle()
+                drawText("bold 50px arial", "black", "center", "Press Enter", canvas.width/2, canvas.height/2 + 50)
+                return;
+            } else if (STATE_GAMEOVER){
+                ctx.drawImage(canvasBuffer, 0, 0)
+
+                //오목판 출력
+                drawBoard();
+
+                //오목알 출력
+                drawStone();
+
+                //시간 출력
+                drawTime();
+
+                // 게임 오버 메세지 출력
+                drawText("bold 50px arial", "black", "center", "Game Over", canvas.width/2 - 20, canvas.height/2)
+                drawText("bold 50px arial", "black", "center", "Spacebar to Restart", canvas.width/2, canvas.height/2 - 100)
+
+            } else {
+                //게임 시작 (엔터키 눌렀을 때)
+
+                ctx.drawImage(canvasBuffer, 0, 0)
+
+                //오목판 출력
+                drawBoard();
+
+                //오목알 출력
+                drawStone();
+
+                //시간 출력
+                drawTime();
+            }
+        }
+
+        //시간 출력
+        function drawTime(){
+            gameTime = getTime() - startTime;
+            let hours = Math.floor((gameTime % (1000 * 60 * 60 * 24)) / (1000*60*60));
+            let miniutes = Math.floor((gameTime % (1000 * 60 * 60)) / (1000*60));
+            let seconds = Math.floor((gameTime % (1000 * 60)) / 1000);
+            let timerText;
+            
+            if(hours == 0 && miniutes == 0){
+                timerText = String(seconds).padStart(2, "0")
+            } else if(hours == 0 && miniutes > 0){
+                timerText  = String(miniutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0") ;
+            } else if(hours > 0 && miniutes > 0){
+                timerText = String(hours).padStart(2, "0") + ":" +  String(miniutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0") ;
+            } else {
+                timerText = String(hours).padStart(2, "0") + ":" +  String(miniutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0") ;
+            }
+
+            ctx.font = "bold 20px arial";
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            ctx.fillText(timerText, canvas.width - 46, 20);
+        }
+
+        //오목판 출력
+        function drawBoard(){
+            for(let i = 0; i < 15; i++){
+                ctx.fillStyle = "black"
+                ctx.fillRect(32+64*i,0,2,canvas.height)
+            }
+
+            for(let i = 0; i < 15; i++){
+                ctx.fillStyle = "black"
+                ctx.fillRect(0,32+64*i,canvas.width,2)
+            }
+            
+        }
+
+        //오목알 출력
+        function drawStone(){
+            for(let i = 0; i < stone.length; i++){
+                if(stone[i].color == 1){
+                    ctx.drawImage(img1st, 5, 5, 255, 255, stone[i].pixelX, stone[i].pixelY, 64, 64)
+                    //ctx.drawImage(stone[i], imgX, imgY, 255, 255, stone[i].pixelX, stone[i].pixelY, 64, 64)
+                } else if (stone[i].color ==2){
+                    ctx.drawImage(img1st, 1049, 5, 255, 255, stone[i].pixelX, stone[i].pixelY, 64, 64)
+                    //ctx.drawImage(stone[i], imgX, imgY, 255, 255, stone[i].pixelX, stone[i].pixelY, 64, 64)
+                } else {
+
+                }
+            }
+            
+        }
+
+        //이미지 설정
+        function setImage(){
+            img1st = new Image();
+            img1st.src = 'src/monster/1st.png'
+            img2nd = new Image();
+            img2nd.src = 'src/monster/2nd.png'
+            img3rd = new Image();
+            img3rd.src = 'src/monster/3rd.png'
+            img4th = new Image();
+            img4th.src = 'src/monster/4th.png'
+            img5th = new Image();
+            img5th.src = 'src/monster/5th.png'
+            img6th = new Image();
+            img6th.src = 'src/monster/6th.png'
+            img7th = new Image();
+            img7th.src = 'src/monster/7th.png'
+            imgMega = new Image();
+            imgMega.src = 'src/monster/Mega.png'
+        }
+
+        function drawText(font, color, align, text, x, y){
+            ctx.font = font;
+            ctx.fillStyle = color;
+            ctx.textAlign = align
+            ctx.fillText(text, x, y)
+        }
+
+        //타이틀 출력
+        function drawTitle (){
+            titleImg = new Image();
+            titleImg.src = 'src/title.png'
+            ctx.drawImage(titleImg, 0, 0, 960, 462)
+        }
+        
+        function checkOmok(){
+            if(checkOmokLine(1,0) || checkOmokLine(0,1) || checkOmokLine(1,1) || checkOmokLine(-1, 1) ){
+                //가로, 세로, 기울기 1 대각, 기울기 -1 대각
+                STATE_GAMEOVER = true;
+            } else {
+                STATE_GAMEOVER = false;
+            }
+        }
+        
+        function checkOmokLine(dx, dy){
+            let lLength = 1;
+            let same = false;
+            let column = lastColumn;
+            let row = lastRow;
+
+            //let evoArr = []
+
+            do {
+                if(column+dx > -1 && column+dx < 15 && row+dy > -1 && row+dy < 15){
+                    //console.log(board[row+dy][column+dx])
+                    if(board[row+dy][column+dx] == lastTurn){
+                        same = true;
+                        lLength = lLength + 1
+                        column = column + dx
+                        row = row + dy
+                    } else {
+                        same = false;
+                    }
+                }
+            } while(same && column > -1 && column < 15 && row > -1 && row < 15)
+
+            
+            column = lastColumn;
+            row = lastRow;
+
+            do {
+                if(column-dx > -1 && column-dx < 15 && row-dy > -1 && row-dy < 15){
+                    //console.log(board[row-dy][column-dx])
+                    if(board[row-dy][column-dx] == lastTurn){
+                        same = true;
+                        lLength = lLength + 1
+                        column = column - dx
+                        row = row - dy
+                    } else {
+                        same = false;
+                    }
+                }
+            } while(same && column > -1 && column < 15 && row > -1 && row < 15)
+
+            //console.log('lenth: ' + lLength);
+            if(lLength == 5 ) {
+                return true;
+            } else {
+                return false
+            }
+            
+        }
+        
+        /*
+        function checkForbidden(x, y){
+            console.log(checkFbdnLine(x,y,1,0)
+            + checkFbdnLine(x,y,0,1)
+            + checkFbdnLine(x,y,1,1)
+            + checkFbdnLine(x,y,-1,1))
+            if(
+            checkFbdnLine(x,y,1,0)
+            + checkFbdnLine(x,y,0,1)
+            + checkFbdnLine(x,y,1,1)
+            + checkFbdnLine(x,y,-1,1) >= 2){
+                return true
+            } else {
+                return false
+            }
+        }
+        
+        function checkFbdnLine(column, row, dx, dy){
+            let threeNum = 0
+                if(board[row+dy][column+dx] == 1
+                && board[row-dy][column-dx] == 1
+                && board[row+dy*2][column+dx*2] == 0
+                && board[row-dy*2][column-dx*2] == 0){
+                    threeNum = threeNum +1
+                } 
+            
+                if(board[row+dy][column+dx] == 0
+                && board[row+dy*2][column+dx*2] == 1){
+                    if(board[row-dy][column-dx] == 1
+                    && board[row-dy*2][column-dx*2] == 0
+                    && board[row+dy*3][column+dx*3] == 0){
+                        threeNum = threeNum +1
+                    }
+
+                    else if(board[row+dy*3][column+dx*3] == 1
+                        && board[row+dy*4][column+dx*4] == 0
+                        && board[row-dy][column-dx] == 0){
+                            threeNum = threeNum +1
+                        } 
+                } 
+
+
+            if( board[row-dy][column-dx] == 0
+            && board[row-dy*2][column-dx*2] == 1){
+                if(board[row+dy][column+dx] == 1
+                && board[row+dy*2][column+dx*2] == 0
+                && board[row-dy*3][column-dx*3] == 0){
+                    threeNum = threeNum +1
+                }
+
+                else if(board[row-dy*3][column-dx*3] == 1
+                    && board[row-dy*4][column-dx*4] == 0
+                    && board[row+dy][column+dx] == 0){
+                        threeNum = threeNum +1
+                    } 
+            } 
+            return threeNum;
+        }
+        */
+
+        function selectPokemonB(){
+            pokemonB = pokemon_Fire[0]
+            console.log(pokemonB)
+        }
+
+        function selectPokemonW(){
+            pokemonW = pokemon_Water[Math.floor(Math.random()*2)]
+            console.log(pokemonW)
+        }
+
+        function changeTurn(){
+            if(TURN_BLACK){
+                TURN_BLACK = false;
+            } else {
+                TURN_BLACK = true;
+            }
+        }
+
+        function getKeyDown(event){
+            console.log(event)
+            keyPressed[event.keyCode] = true;
+        }
+
+        function getKeyUp(){
+            console.log(event)
+            keyPressed[event.keyCode] = false;
+        }
+    </script>
+</body>
+</html>
